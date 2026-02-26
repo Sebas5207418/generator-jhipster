@@ -299,6 +299,51 @@ export default class JHipsterServerGenerator extends BaseApplicationGenerator<
   }
 
   /**
+   * Get OIDC scopes based on Keycloak version detection
+   * This method determines which OIDC scopes to include based on Keycloak version
+   * and application configuration.
+   * 
+   * @returns {string[]} Array of OIDC scopes
+   */
+  getOidcScopes() {
+    const scopes = ['openid', 'profile', 'email'];
+    
+    if (this.jhipsterConfig.authenticationType === 'oauth2') {
+      const keycloakVersion = this.jhipsterConfig.keycloakVersion || '25.0.0';
+      const majorVersion = parseInt(keycloakVersion.split('.')[0], 10);
+      const includeOfflineAccess = this.jhipsterConfig.includeOfflineAccess !== false;
+      
+      if (majorVersion < 26 && includeOfflineAccess) {
+        scopes.push('offline_access');
+      }
+      
+      if (this.jhipsterConfig.applicationType === 'microservice' || this.jhipsterConfig.reactive === true) {
+        scopes.push('microprofile-jwt');
+      }
+    }
+    
+    return scopes;
+  }
+
+  /**
+   * Configure Keycloak client settings based on version
+   * Provides version-specific configuration for OAuth2 setup
+   * 
+   * @returns {Object} Keycloak configuration object
+   */
+  _configureKeycloakClient() {
+    const keycloakVersion = this.jhipsterConfig.keycloakVersion || '25.0.0';
+    const majorVersion = parseInt(keycloakVersion.split('.')[0], 10);
+    
+    return {
+      version: keycloakVersion,
+      majorVersion,
+      requiresExplicitOfflineAccess: majorVersion >= 26,
+      defaultScopes: this.getOidcScopes().join(' ')
+    };
+  }
+
+  /**
    * Validate the entityTableName
    * @return {true|string} true for a valid value or error message.
    */
